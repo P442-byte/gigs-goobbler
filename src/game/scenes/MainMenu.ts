@@ -26,19 +26,30 @@ export class MainMenu extends Scene
             align: 'center'
         }).setOrigin(0.5).setDepth(100);
 
+        this.add.text(512, 520, 'Press P to play Gigs Gobbler', {
+            fontFamily: 'Arial Black', fontSize: 24, color: '#ffff00',
+            stroke: '#000000', strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(100);
+
+        // Add input for Gigs Gobbler
+        this.input.keyboard!.on('keydown-P', () => {
+            this.scene.start('PacTest2');
+        });
+
         EventBus.emit('current-scene-ready', this);
     }
     
-    changeScene ()
-    {
-        if (this.logoTween)
-        {
-            this.logoTween.stop();
-            this.logoTween = null;
-        }
+    // changeScene ()
+    // {
+    //     if (this.logoTween)
+    //     {
+    //         this.logoTween.stop();
+    //         this.logoTween = null;
+    //     }
 
-        this.scene.start('Game');
-    }
+    //     this.scene.start('Game');
+    // }
 
     moveLogo (vueCallback: ({ x, y }: { x: number, y: number }) => void)
     {
