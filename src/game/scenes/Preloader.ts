@@ -36,7 +36,7 @@ export class Preloader extends Scene
         this.load.image('star', 'star.png');
         
         // Load the coffee break music
-        this.load.audio('coffee-break-music', '../pacman-master/sounds/coffee-break-music.mp3');
+        this.load.audio('coffee-break-music', '../public/sounds/coffee-break-music.mp3');
     }
 
     create ()
