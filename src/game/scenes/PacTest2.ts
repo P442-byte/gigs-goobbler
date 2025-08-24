@@ -68,11 +68,11 @@ export class PacTest2 extends Phaser.Scene {
         this.createBackground();
 
         // Start background music
-        this.backgroundMusic = this.sound.add('coffee-break-music', {
-            loop: true,  // Loop the music
-            volume: 0.5  // Set volume (0.0 to 1.0)
-        });
-        this.backgroundMusic.play();
+        // this.backgroundMusic = this.sound.add('coffee-break-music', {
+        //     loop: true,  // Loop the music
+        //     volume: 0.5  // Set volume (0.0 to 1.0)
+        // });
+        // this.backgroundMusic.play();
 
         // Create the maze
         for (let y = 0; y < this.map.length; y++) {
