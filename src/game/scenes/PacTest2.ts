@@ -4,7 +4,9 @@ import { EventBus } from '../EventBus';
 export class PacTest2 extends Phaser.Scene {
 
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-    private space!: Phaser.Input.Keyboard.Key;
+    
+    // Add background music property
+    private backgroundMusic!: Phaser.Sound.BaseSound;
 
     private tileSize: number = 32;
     
@@ -31,8 +33,10 @@ export class PacTest2 extends Phaser.Scene {
     private dots: Phaser.GameObjects.Arc[] = [];
 
     private pacman!: Phaser.GameObjects.Arc;
-    private pacmanSpeed: number = 2;
+    private pacmanSpeed: number = 1;
     // private currentInputDirection: { x: number, y: number } = { x: 0, y: 0 };
+    private preInputDirection: { x: number, y: number } = { x: 0, y: 0 };
+    private preInputSelected: boolean = false;
     private newInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private tileXPlusInputDir: number = 0;
     private tileYPlusInputDir: number = 0;
@@ -47,7 +51,13 @@ export class PacTest2 extends Phaser.Scene {
     
     create(){
         this.cursors = this.input.keyboard!.createCursorKeys();
-        this.space = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+        // Start background music
+        this.backgroundMusic = this.sound.add('coffee-break-music', {
+            loop: true,  // Loop the music
+            volume: 0.5  // Set volume (0.0 to 1.0)
+        });
+        this.backgroundMusic.play();
 
         for (let y = 0; y < this.map.length; y++) {
             for (let x = 0; x < this.map[y].length; x++) {
@@ -95,7 +105,29 @@ export class PacTest2 extends Phaser.Scene {
     }
 
     private playerMovement(){
+
         if (this.cursors.left.isDown) {
+            this.preInputDirection.x = -1;
+            this.preInputDirection.y = 0;
+            this.preInputSelected = true;
+        }
+        else if (this.cursors.right.isDown) {
+            this.preInputDirection.x = 1;
+            this.preInputDirection.y = 0;
+            this.preInputSelected = true;
+        }
+        else if (this.cursors.up.isDown) {
+            this.preInputDirection.x = 0;
+            this.preInputDirection.y = -1;
+            this.preInputSelected = true;
+        }
+        else if (this.cursors.down.isDown) {
+            this.preInputDirection.x = 0;
+            this.preInputDirection.y = 1;
+            this.preInputSelected = true;
+        }
+
+        if (this.preInputDirection.x === -1 && this.preInputDirection.y === 0 && this.preInputSelected === true) {
             this.tileYPlusInputDir = Math.floor((this.pacman.y + (0 * 32))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x + (-1 * 32))/ this.tileSize);
 
@@ -121,11 +153,12 @@ export class PacTest2 extends Phaser.Scene {
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
             if(center === true && center2 === true && center3 === true){
-            this.newInputDirection.x = -1;
-            this.newInputDirection.y = 0;
+            this.newInputDirection.x = this.preInputDirection.x;
+            this.newInputDirection.y = this.preInputDirection.y;
+            this.preInputSelected = false;
             }
         }
-        else if (this.cursors.right.isDown) {
+        else if (this.preInputDirection.x === 1 && this.preInputDirection.y === 0 && this.preInputSelected === true) {
             this.tileYPlusInputDir = Math.floor((this.pacman.y + (0 * 32))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x + (1 * 32))/ this.tileSize);
 
@@ -151,11 +184,12 @@ export class PacTest2 extends Phaser.Scene {
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
             
             if(center === true && center2 === true && center3 === true){
-                this.newInputDirection.x = 1;
-                this.newInputDirection.y = 0;
+                this.newInputDirection.x = this.preInputDirection.x;
+                this.newInputDirection.y = this.preInputDirection.y;
+                this.preInputSelected = false;
             }
         }
-        else if (this.cursors.up.isDown) {
+        else if (this.preInputDirection.x === 0 && this.preInputDirection.y === -1 && this.preInputSelected === true) {
             this.tileYPlusInputDir = Math.floor((this.pacman.y + (-1 * 32))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x + (0 * 32))/ this.tileSize);
 
@@ -181,11 +215,12 @@ export class PacTest2 extends Phaser.Scene {
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
             if(center === true && center2 === true && center3 === true){
-                this.newInputDirection.x = 0;
-                this.newInputDirection.y = -1;
+                this.newInputDirection.x = this.preInputDirection.x;
+                this.newInputDirection.y = this.preInputDirection.y;
+                this.preInputSelected = false;
             }
         }
-        else if (this.cursors.down.isDown) {
+        else if (this.preInputDirection.x === 0 && this.preInputDirection.y === 1 && this.preInputSelected === true) {
             this.tileYPlusInputDir = Math.floor((this.pacman.y + (1 * 32))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x + (0 * 32))/ this.tileSize);
 
@@ -211,8 +246,9 @@ export class PacTest2 extends Phaser.Scene {
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
             if(center === true && center2 === true && center3 === true){
-                this.newInputDirection.x = 0;
-                this.newInputDirection.y = 1;
+                this.newInputDirection.x = this.preInputDirection.x;
+                this.newInputDirection.y = this.preInputDirection.y;
+                this.preInputSelected = false;
             }
         }
 
@@ -232,6 +268,13 @@ export class PacTest2 extends Phaser.Scene {
         if(this.blockedByWall === false){
             this.pacman.setX(this.pacman.x + this.newInputDirection.x * this.pacmanSpeed);
             this.pacman.setY(this.pacman.y + this.newInputDirection.y * this.pacmanSpeed);
+        }
+    }
+
+    // Clean up background music when scene ends
+    shutdown() {
+        if (this.backgroundMusic) {
+            this.backgroundMusic.stop();
         }
     }
 }
