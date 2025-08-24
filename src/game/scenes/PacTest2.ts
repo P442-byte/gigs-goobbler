@@ -8,6 +8,16 @@ export class PacTest2 extends Phaser.Scene {
     // Add background music property
     private backgroundMusic!: Phaser.Sound.BaseSound;
 
+    // Gesture handling properties
+    private swipeStartX: number = 0;
+    private swipeStartY: number = 0;
+    private swipeEndX: number = 0;
+    private swipeEndY: number = 0;
+    private isSwipeActive: boolean = false;
+    private minSwipeDistance: number = 50; // Minimum distance for a valid swipe
+    private maxSwipeTime: number = 300; // Maximum time for a swipe in milliseconds
+    private swipeStartTime: number = 0;
+
     private tileSize: number = 32; // Will be calculated dynamically
     private mapWidth: number = 19; // Number of tiles horizontally
     private mapHeight: number = 17; // Number of tiles vertically
@@ -60,6 +70,9 @@ export class PacTest2 extends Phaser.Scene {
     
     create(){
         this.cursors = this.input.keyboard!.createCursorKeys();
+
+        // Set up gesture handling
+        this.setupGestureHandling();
 
         // Calculate optimal tile size based on screen dimensions
         this.calculateTileSize();
@@ -144,6 +157,80 @@ export class PacTest2 extends Phaser.Scene {
         console.log(`TileSize: ${this.tileSize}, MapSize: ${actualMapWidth}x${actualMapHeight}`);
         console.log(`MapOffset: ${this.mapOffsetX}, ${this.mapOffsetY}`);
         console.log(`PacmanSpeed: ${this.pacmanSpeed}`);
+    }
+
+    private setupGestureHandling() {
+        // Enable pointer events
+        this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            this.swipeStartX = pointer.x;
+            this.swipeStartY = pointer.y;
+            this.swipeStartTime = this.time.now;
+            this.isSwipeActive = true;
+        });
+
+        this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+            if (!this.isSwipeActive) return;
+
+            this.swipeEndX = pointer.x;
+            this.swipeEndY = pointer.y;
+            const swipeEndTime = this.time.now;
+            
+            this.detectSwipe(swipeEndTime);
+            this.isSwipeActive = false;
+        });
+
+        // Handle pointer move for continuous swipe detection
+        this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            if (!this.isSwipeActive || !pointer.isDown) return;
+            
+            this.swipeEndX = pointer.x;
+            this.swipeEndY = pointer.y;
+        });
+    }
+
+    private detectSwipe(endTime: number) {
+        const deltaX = this.swipeEndX - this.swipeStartX;
+        const deltaY = this.swipeEndY - this.swipeStartY;
+        const swipeTime = endTime - this.swipeStartTime;
+        
+        // Check if swipe is within time limit
+        if (swipeTime > this.maxSwipeTime) return;
+        
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        // Check if swipe distance is sufficient
+        if (distance < this.minSwipeDistance) return;
+        
+        // Determine swipe direction based on the larger delta
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+        
+        if (absX > absY) {
+            // Horizontal swipe
+            if (deltaX > 0) {
+                // Swipe right
+                this.handleSwipeInput(1, 0);
+            } else {
+                // Swipe left
+                this.handleSwipeInput(-1, 0);
+            }
+        } else {
+            // Vertical swipe
+            if (deltaY > 0) {
+                // Swipe down
+                this.handleSwipeInput(0, 1);
+            } else {
+                // Swipe up
+                this.handleSwipeInput(0, -1);
+            }
+        }
+    }
+
+    private handleSwipeInput(x: number, y: number) {
+        // Set the pre-input direction based on swipe
+        this.preInputDirection.x = x;
+        this.preInputDirection.y = y;
+        this.preInputSelected = true;
     }
 
     private createBackground() {
