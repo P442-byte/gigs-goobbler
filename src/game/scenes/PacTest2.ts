@@ -33,7 +33,8 @@ export class PacTest2 extends Phaser.Scene {
     private dots: Phaser.GameObjects.Arc[] = [];
 
     private pacman!: Phaser.GameObjects.Arc;
-    private pacmanSpeed: number = 1;
+    // This value needs to be whatever the tilesize(32 in this case) is devided by a whole number, in this case its 32 / 10 = 3.2, but something like 32 / 12 = 2.6666667 would also work for example as long as whatever 32(tilesize) is devided by is a whole number. In other words - pacmanSpeed = tileSize ÷ n (where n is a whole number),
+    private pacmanSpeed: number = 3.2;
     // private currentInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private preInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private preInputSelected: boolean = false;
@@ -254,9 +255,6 @@ export class PacTest2 extends Phaser.Scene {
 
         this.tileYPlusInputDir = Math.floor((this.pacman.y + (this.newInputDirection.y * 16.000001))/ this.tileSize);
         this.tileXPlusInputDir = Math.floor((this.pacman.x + (this.newInputDirection.x * 16.000001))/ this.tileSize);
-
-        this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-        this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
         if(this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 1){
             this.blockedByWall = true;
