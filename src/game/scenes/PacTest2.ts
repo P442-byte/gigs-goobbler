@@ -31,6 +31,7 @@ export class PacTest2 extends Phaser.Scene {
     ];
 
     private dots: Phaser.GameObjects.Arc[] = [];
+    private walls: Phaser.GameObjects.Rectangle[] = [];
 
     private pacman!: Phaser.GameObjects.Arc;
     // This value needs to be whatever the tilesize(32 in this case) is devided by a whole number, in this case its 32 / 10 = 3.2, but something like 32 / 12 = 2.6666667 would also work for example as long as whatever 32(tilesize) is devided by is a whole number. In other words - pacmanSpeed = tileSize ÷ n (where n is a whole number),
@@ -46,12 +47,18 @@ export class PacTest2 extends Phaser.Scene {
 
     private blockedByWall: boolean = false;
 
+    // Visual enhancement properties
+    private glowEffect!: Phaser.GameObjects.Graphics;
+
     constructor() {
         super('PacTest2');
     }
     
     create(){
         this.cursors = this.input.keyboard!.createCursorKeys();
+
+        // Create a dark gradient background
+        this.createBackground();
 
         // Start background music
         this.backgroundMusic = this.sound.add('coffee-break-music', {
@@ -60,14 +67,17 @@ export class PacTest2 extends Phaser.Scene {
         });
         this.backgroundMusic.play();
 
+        // Create the maze
         for (let y = 0; y < this.map.length; y++) {
             for (let x = 0; x < this.map[y].length; x++) {
                 const tile = this.map[y][x];
-                const tileColor = tile === 1 ? 0xffffff : 0x000000;
-
-                this.createTile(x, y, tileColor);
+                if (tile === 1) {
+                    this.createWall(x, y);
+                }
             }
         }
+
+        // Create dots and pacman
         for (let y = 0; y < this.map.length; y++) {
             for (let x = 0; x < this.map[y].length; x++) {
                 const tile = this.map[y][x];
@@ -82,27 +92,95 @@ export class PacTest2 extends Phaser.Scene {
                 }
             }
         }
+
+        // Add glow effects
+        this.createGlowEffects();
+
+        EventBus.emit('current-scene-ready', this);
     }
 
-    private createTile(x: number, y: number, tileColor: number) {
-        const mapTile = this.add.rectangle(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize, tileColor).setOrigin(0, 0);
-        mapTile.setFillStyle(tileColor);
-        mapTile.setZ(10);
+    private createBackground() {
+        // Create a gradient background
+        const graphics = this.add.graphics();
+        graphics.fillGradientStyle(0x0a0a0a, 0x0a0a0a, 0x1a1a2e, 0x16213e, 1);
+        graphics.fillRect(0, 0, this.scale.width, this.scale.height);
+        graphics.setDepth(-10);
+    }
+
+    private createWall(x: number, y: number) {
+        const wall = this.add.rectangle(
+            x * this.tileSize, 
+            y * this.tileSize, 
+            this.tileSize, 
+            this.tileSize, 
+            0x0066ff
+        ).setOrigin(0, 0);
+        
+        // Add a subtle border effect
+        wall.setStrokeStyle(2, 0x0099ff);
+        wall.setDepth(10);
+        this.walls.push(wall);
     }
 
     private createPacman(spawnX: number, spawnY: number) {
-        this.pacman = this.add.arc(spawnX , spawnY , 16, 0, 360, false, 0xffffff);
+        this.pacman = this.add.arc(spawnX, spawnY, 16, 0, 360, false, 0xffff00);
+        this.pacman.setStrokeStyle(2, 0xffcc00);
+        this.pacman.setDepth(20);
+        
+        // Add a subtle glow effect to pacman
+        const glowCircle = this.add.arc(spawnX, spawnY, 20, 0, 360, false, 0xffff00);
+        glowCircle.setAlpha(0.3);
+        glowCircle.setDepth(19);
+        
+        // Make the glow follow pacman
+        this.tweens.add({
+            targets: glowCircle,
+            alpha: { from: 0.3, to: 0.1 },
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
     }
 
     private createDot(spawnX: number, spawnY: number) {
-        const dot = this.add.arc(spawnX, spawnY, 4, 0, 360, false, 0xffffff);
+        const dot = this.add.arc(spawnX, spawnY, 4, 0, 360, false, 0x00ff88);
+        dot.setDepth(15);
+        
+        // Add a subtle pulsing effect to dots
+        this.tweens.add({
+            targets: dot,
+            scaleX: { from: 1, to: 1.3 },
+            scaleY: { from: 1, to: 1.3 },
+            alpha: { from: 1, to: 0.7 },
+            duration: 2000 + Math.random() * 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
         this.dots.push(dot);
+    }
+
+    private createGlowEffects() {
+        // Add some ambient lighting effects
+        const ambientGlow = this.add.graphics();
+        ambientGlow.fillGradientStyle(0x0ec3c9, 0x0ec3c9, 0x000000, 0x000000, 0.1);
+        ambientGlow.fillCircle(this.scale.width / 2, this.scale.height / 2, 300);
+        ambientGlow.setDepth(-5);
+        ambientGlow.setBlendMode(Phaser.BlendModes.ADD);
     }
 
     update(){
         if (!this.cursors) return;
 
         this.playerMovement();
+        this.updatePacmanGlow();
+    }
+
+    private updatePacmanGlow() {
+        // Update any glow effects that follow pacman
+        // This could be expanded for more visual effects
     }
 
     private playerMovement(){
