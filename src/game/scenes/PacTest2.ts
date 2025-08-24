@@ -8,7 +8,11 @@ export class PacTest2 extends Phaser.Scene {
     // Add background music property
     private backgroundMusic!: Phaser.Sound.BaseSound;
 
-    private tileSize: number = 32;
+    private tileSize: number = 32; // Will be calculated dynamically
+    private mapWidth: number = 19; // Number of tiles horizontally
+    private mapHeight: number = 17; // Number of tiles vertically
+    private mapOffsetX: number = 0; // X offset to center the map
+    private mapOffsetY: number = 0; // Y offset to center the map
     
     private map: number[][] = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -34,8 +38,8 @@ export class PacTest2 extends Phaser.Scene {
     private walls: Phaser.GameObjects.Rectangle[] = [];
 
     private pacman!: Phaser.GameObjects.Arc;
-    // This value needs to be whatever the tilesize(32 in this case) is devided by a whole number, in this case its 32 / 10 = 3.2, but something like 32 / 12 = 2.6666667 would also work for example as long as whatever 32(tilesize) is devided by is a whole number. In other words - pacmanSpeed = tileSize ÷ n (where n is a whole number),
-    private pacmanSpeed: number = 3.2;
+    private pacmanRadius: number = 16; // Will be calculated based on tileSize
+    private pacmanSpeed: number = 3.2; // Will be calculated based on tileSize
     // private currentInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private preInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private preInputSelected: boolean = false;
@@ -56,6 +60,9 @@ export class PacTest2 extends Phaser.Scene {
     
     create(){
         this.cursors = this.input.keyboard!.createCursorKeys();
+
+        // Calculate optimal tile size based on screen dimensions
+        this.calculateTileSize();
 
         // Create a dark gradient background
         this.createBackground();
@@ -81,8 +88,8 @@ export class PacTest2 extends Phaser.Scene {
         for (let y = 0; y < this.map.length; y++) {
             for (let x = 0; x < this.map[y].length; x++) {
                 const tile = this.map[y][x];
-                const spawnX = x * this.tileSize + this.tileSize / 2;
-                const spawnY = y * this.tileSize + this.tileSize / 2;
+                const spawnX = this.mapOffsetX + x * this.tileSize + this.tileSize / 2;
+                const spawnY = this.mapOffsetY + y * this.tileSize + this.tileSize / 2;
 
                 if (tile === 0) {
                     this.createDot(spawnX, spawnY);
@@ -99,6 +106,46 @@ export class PacTest2 extends Phaser.Scene {
         EventBus.emit('current-scene-ready', this);
     }
 
+    private calculateTileSize() {
+        // Get available screen dimensions (accounting for padding)
+        const paddingPx = 32; // 2rem = 32px padding on each side
+        const availableWidth = this.scale.width - (paddingPx * 2);
+        const availableHeight = this.scale.height - (paddingPx * 2);
+        
+        // Calculate tile size based on width and height constraints
+        const maxTileSizeByWidth = Math.floor(availableWidth / this.mapWidth);
+        const maxTileSizeByHeight = Math.floor(availableHeight / this.mapHeight);
+        
+        // Use the smaller of the two to ensure the map fits in both dimensions
+        this.tileSize = Math.min(maxTileSizeByWidth, maxTileSizeByHeight);
+        
+        // Ensure minimum tile size for playability
+        this.tileSize = Math.max(this.tileSize, 16);
+        
+        // Calculate actual map dimensions
+        const actualMapWidth = this.mapWidth * this.tileSize;
+        const actualMapHeight = this.mapHeight * this.tileSize;
+        
+        // Calculate offsets to center the map
+        this.mapOffsetX = (this.scale.width - actualMapWidth) / 2;
+        this.mapOffsetY = (this.scale.height - actualMapHeight) / 2;
+        
+        // Calculate pacman radius and speed based on tile size
+        this.pacmanRadius = this.tileSize / 2;
+        
+        // Maintain the same speed ratio: pacmanSpeed = tileSize ÷ 10
+        // This value needs to be whatever the tilesize(32 in this case) is devided by a whole number, in this case its 32 / 10 = 3.2, but something like 32 / 12 = 2.6666667 would also work for example as long as whatever 32(tilesize) is devided by is a whole number. In other words - pacmanSpeed = tileSize ÷ n (where n is a whole number),
+        this.pacmanSpeed = this.tileSize / 10;
+
+        //this.pacmanSpeed = this.tileSize / 10;
+        
+        console.log(`Screen: ${this.scale.width}x${this.scale.height}`);
+        console.log(`Available: ${availableWidth}x${availableHeight}`);
+        console.log(`TileSize: ${this.tileSize}, MapSize: ${actualMapWidth}x${actualMapHeight}`);
+        console.log(`MapOffset: ${this.mapOffsetX}, ${this.mapOffsetY}`);
+        console.log(`PacmanSpeed: ${this.pacmanSpeed}`);
+    }
+
     private createBackground() {
         // Create a gradient background
         const graphics = this.add.graphics();
@@ -109,8 +156,8 @@ export class PacTest2 extends Phaser.Scene {
 
     private createWall(x: number, y: number) {
         const wall = this.add.rectangle(
-            x * this.tileSize, 
-            y * this.tileSize, 
+            this.mapOffsetX + x * this.tileSize, 
+            this.mapOffsetY + y * this.tileSize, 
             this.tileSize, 
             this.tileSize, 
             0x0066ff
@@ -123,12 +170,13 @@ export class PacTest2 extends Phaser.Scene {
     }
 
     private createPacman(spawnX: number, spawnY: number) {
-        this.pacman = this.add.arc(spawnX, spawnY, 16, 0, 360, false, 0xffff00);
+        this.pacman = this.add.arc(spawnX, spawnY, this.pacmanRadius, 0, 360, false, 0xffff00);
         this.pacman.setStrokeStyle(2, 0xffcc00);
         this.pacman.setDepth(20);
         
         // Add a subtle glow effect to pacman
-        const glowCircle = this.add.arc(spawnX, spawnY, 20, 0, 360, false, 0xffff00);
+        const glowRadius = this.pacmanRadius + 4;
+        const glowCircle = this.add.arc(spawnX, spawnY, glowRadius, 0, 360, false, 0xffff00);
         glowCircle.setAlpha(0.3);
         glowCircle.setDepth(19);
         
@@ -144,7 +192,9 @@ export class PacTest2 extends Phaser.Scene {
     }
 
     private createDot(spawnX: number, spawnY: number) {
-        const dot = this.add.arc(spawnX, spawnY, 4, 0, 360, false, 0x00ff88);
+        // Scale dot size based on tile size
+        const dotRadius = Math.max(2, this.tileSize / 8);
+        const dot = this.add.arc(spawnX, spawnY, dotRadius, 0, 360, false, 0x00ff88);
         dot.setDepth(15);
         
         // Add a subtle pulsing effect to dots
@@ -175,7 +225,6 @@ export class PacTest2 extends Phaser.Scene {
         if (!this.cursors) return;
 
         this.playerMovement();
-        this.updatePacmanGlow();
     }
 
     private updatePacmanGlow() {
@@ -207,27 +256,27 @@ export class PacTest2 extends Phaser.Scene {
         }
 
         if (this.preInputDirection.x === -1 && this.preInputDirection.y === 0 && this.preInputSelected === true) {
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (0 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (-1 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (0 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (-1 * 15))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (-1 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.pacmanRadius * 0.9375))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (1 * 15))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (-1 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.pacmanRadius * 0.9375))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
@@ -238,27 +287,27 @@ export class PacTest2 extends Phaser.Scene {
             }
         }
         else if (this.preInputDirection.x === 1 && this.preInputDirection.y === 0 && this.preInputSelected === true) {
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (0 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (1 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (0 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (1 * 15))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (1 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.pacmanRadius * 0.9375))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (-1 * 15))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (1 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.pacmanRadius * 0.9375))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
             
@@ -269,27 +318,27 @@ export class PacTest2 extends Phaser.Scene {
             }
         }
         else if (this.preInputDirection.x === 0 && this.preInputDirection.y === -1 && this.preInputSelected === true) {
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (-1 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (0 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (0 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (-1 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (-1 * 15.5))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.pacmanRadius * 0.984375))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (-1 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (1 * 15.5))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.pacmanRadius * 0.984375))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
@@ -300,27 +349,27 @@ export class PacTest2 extends Phaser.Scene {
             }
         }
         else if (this.preInputDirection.x === 0 && this.preInputDirection.y === 1 && this.preInputSelected === true) {
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (1 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (0 * 32))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (0 * this.tileSize))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (1 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (1 * 15.5))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.pacmanRadius * 0.984375))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
-            this.tileYPlusInputDir = Math.floor((this.pacman.y + (1 * 32))/ this.tileSize);
-            this.tileXPlusInputDir = Math.floor((this.pacman.x + (-1 * 15.5))/ this.tileSize);
+            this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.tileSize))/ this.tileSize);
+            this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.pacmanRadius * 0.984375))/ this.tileSize);
 
-            this.nextWorldX = this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
-            this.nextWorldY = this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
+            this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
             const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
 
@@ -331,8 +380,8 @@ export class PacTest2 extends Phaser.Scene {
             }
         }
 
-        this.tileYPlusInputDir = Math.floor((this.pacman.y + (this.newInputDirection.y * 16.000001))/ this.tileSize);
-        this.tileXPlusInputDir = Math.floor((this.pacman.x + (this.newInputDirection.x * 16.000001))/ this.tileSize);
+        this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (this.newInputDirection.y * this.pacmanRadius * 1.000001))/ this.tileSize);
+        this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (this.newInputDirection.x * this.pacmanRadius * 1.000001))/ this.tileSize);
 
         if(this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 1){
             this.blockedByWall = true;

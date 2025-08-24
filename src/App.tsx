@@ -157,7 +157,7 @@ function App()
             {currentScene === 'MainMenu' && (
                 <div className="menu-overlay">
                     <div className="menu-container">
-                        <h1 className="game-title">Data Dash</h1>
+                        <h1 className="game-title">Gigs Gobbler</h1>
                         <p className="game-subtitle">Navigate the digital maze and collect all the data!</p>
                         <div className="menu-buttons">
                             <button className="menu-button primary" onClick={startGame}>
