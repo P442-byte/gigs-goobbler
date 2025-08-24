@@ -47,9 +47,12 @@ export class PacTest2 extends Phaser.Scene {
     private dots: Phaser.GameObjects.Arc[] = [];
     private walls: Phaser.GameObjects.Rectangle[] = [];
 
-    private pacman!: Phaser.GameObjects.Arc;
+    private pacman!: Phaser.GameObjects.Graphics;
+    private pacmanGlow!: Phaser.GameObjects.Arc;
     private pacmanRadius: number = 16; // Will be calculated based on tileSize
     private pacmanSpeed: number = 3.2; // Will be calculated based on tileSize
+    private pacmanMouthAngle: number = 0; // Current mouth opening angle
+    private pacmanDirection: number = 0; // Current facing direction in degrees
     // private currentInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private preInputDirection: { x: number, y: number } = { x: 0, y: 0 };
     private preInputSelected: boolean = false;
@@ -257,25 +260,126 @@ export class PacTest2 extends Phaser.Scene {
     }
 
     private createPacman(spawnX: number, spawnY: number) {
-        this.pacman = this.add.arc(spawnX, spawnY, this.pacmanRadius, 0, 360, false, 0xffff00);
-        this.pacman.setStrokeStyle(2, 0xffcc00);
+        // Create graphics object for Pacman
+        this.pacman = this.add.graphics();
+        this.pacman.setPosition(spawnX, spawnY);
         this.pacman.setDepth(20);
         
         // Add a subtle glow effect to pacman
         const glowRadius = this.pacmanRadius + 4;
-        const glowCircle = this.add.arc(spawnX, spawnY, glowRadius, 0, 360, false, 0xffff00);
-        glowCircle.setAlpha(0.3);
-        glowCircle.setDepth(19);
+        this.pacmanGlow = this.add.arc(spawnX, spawnY, glowRadius, 0, 360, false, 0xffff00);
+        this.pacmanGlow.setAlpha(0.3);
+        this.pacmanGlow.setDepth(19);
         
         // Make the glow follow pacman
         this.tweens.add({
-            targets: glowCircle,
+            targets: this.pacmanGlow,
             alpha: { from: 0.3, to: 0.1 },
             duration: 1000,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
+
+        // Start mouth animation
+        this.startMouthAnimation();
+        
+        // Draw initial Pacman
+        this.drawPacman();
+    }
+
+    private drawPacman() {
+        // Clear previous drawing
+        this.pacman.clear();
+        
+        // Set fill style
+        this.pacman.fillStyle(0xffff00);
+        this.pacman.lineStyle(2, 0xffcc00);
+        
+        // Calculate mouth angles based on direction and animation
+        const halfMouth = this.pacmanMouthAngle / 2;
+        let startAngle = this.pacmanDirection - halfMouth;
+        let endAngle = this.pacmanDirection + halfMouth;
+        
+        // Convert to radians
+        startAngle = Phaser.Math.DegToRad(startAngle);
+        endAngle = Phaser.Math.DegToRad(endAngle);
+        
+        // Draw Pacman as a circle with a mouth
+        this.pacman.beginPath();
+        this.pacman.arc(0, 0, this.pacmanRadius, endAngle, startAngle, false);
+        this.pacman.lineTo(0, 0);
+        this.pacman.closePath();
+        this.pacman.fillPath();
+        this.pacman.strokePath();
+        
+        // Draw the eye
+        this.drawPacmanEye();
+    }
+
+    private drawPacmanEye() {
+        // Calculate eye position based on facing direction
+        const eyeDistance = this.pacmanRadius * 0.4; // Distance from center
+        const eyeRadius = this.pacmanRadius * 0.40; // Eye size
+        
+        // Calculate eye position based on direction
+        let eyeX = 0;
+        let eyeY = 0;
+        
+        switch (this.pacmanDirection) {
+            case 0: // Right
+                eyeX = -eyeDistance * 0.6;
+                eyeY = -eyeDistance * 0.8;
+                break;
+            case 90: // Down
+                eyeX = eyeDistance * 0.8;
+                eyeY = -eyeDistance * 0.6;
+                break;
+            case 180: // Left
+                eyeX = eyeDistance * 0.6;
+                eyeY = -eyeDistance * 0.8;
+                break;
+            case 270: // Up
+                eyeX = eyeDistance * 0.8;
+                eyeY = eyeDistance * 0.6;
+                break;
+        }
+        
+        // Draw the eye (white background with black pupil)
+        this.pacman.fillStyle(0xffffff);
+        this.pacman.fillCircle(eyeX, eyeY, eyeRadius);
+        
+        // Draw the pupil
+        this.pacman.fillStyle(0x000000);
+        this.pacman.fillCircle(eyeX, eyeY, eyeRadius * 0.6);
+    }
+
+    private startMouthAnimation() {
+        // Animate mouth opening and closing with smoother timing
+        this.tweens.add({
+            targets: this,
+            pacmanMouthAngle: { from: 10, to: 90 }, // Start slightly open to reduce flicker
+            duration: 200, // Slightly faster for smoother animation
+            yoyo: true,
+            repeat: -1,
+            ease: 'Power2',
+            onUpdate: () => {
+                this.drawPacman();
+            }
+        });
+    }
+
+    private updatePacmanDirection() {
+        // Update facing direction based on movement direction
+        if (this.newInputDirection.x === 1) {
+            this.pacmanDirection = 0; // Right
+        } else if (this.newInputDirection.x === -1) {
+            this.pacmanDirection = 180; // Left
+        } else if (this.newInputDirection.y === -1) {
+            this.pacmanDirection = 270; // Up
+        } else if (this.newInputDirection.y === 1) {
+            this.pacmanDirection = 90; // Down
+        }
     }
 
     private createDot(spawnX: number, spawnY: number) {
@@ -481,6 +585,13 @@ export class PacTest2 extends Phaser.Scene {
             this.pacman.setX(this.pacman.x + this.newInputDirection.x * this.pacmanSpeed);
             this.pacman.setY(this.pacman.y + this.newInputDirection.y * this.pacmanSpeed);
             
+            // Update glow position to follow Pacman
+            this.pacmanGlow.setX(this.pacman.x);
+            this.pacmanGlow.setY(this.pacman.y);
+            
+            // Update Pacman's facing direction
+            this.updatePacmanDirection();
+            
             // Handle teleportation on row 8 (the tunnel row)
             this.handleTeleportation();
         }
@@ -497,11 +608,13 @@ export class PacTest2 extends Phaser.Scene {
             if (this.pacman.x > this.mapOffsetX + (this.mapWidth * this.tileSize)) {
                 // Teleport to the left side
                 this.pacman.setX(this.mapOffsetX - this.pacmanRadius);
+                this.pacmanGlow.setX(this.pacman.x);
             }
             // Check if Pacman has gone off the left edge
             else if (this.pacman.x < this.mapOffsetX - this.pacmanRadius) {
                 // Teleport to the right side
                 this.pacman.setX(this.mapOffsetX + (this.mapWidth * this.tileSize));
+                this.pacmanGlow.setX(this.pacman.x);
             }
         }
     }
