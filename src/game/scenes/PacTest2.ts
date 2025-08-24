@@ -29,15 +29,15 @@ export class PacTest2 extends Phaser.Scene {
         [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
         [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
-        [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1],
-        [0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0],
+        [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
+        [1,0,0,0,0,1,1,1,0,1,0,1,1,1,0,0,0,0,1],
+        [1,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1],
         [1,1,1,1,0,1,0,1,1,0,1,1,0,1,0,1,1,1,1],
         [0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0],
         [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
-        [0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0],
-        [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1],
-        [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+        [1,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1],
+        [1,0,0,0,0,1,1,1,0,1,0,1,1,1,0,0,0,0,1],
+        [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
         [1,0,0,0,0,4,0,0,0,1,0,0,0,0,0,0,0,0,1],
@@ -349,7 +349,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.pacmanRadius * 0.9375))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.tileSize))/ this.tileSize);
@@ -357,7 +357,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.pacmanRadius * 0.9375))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.tileSize))/ this.tileSize);
@@ -365,7 +365,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             if(center === true && center2 === true && center3 === true){
             this.newInputDirection.x = this.preInputDirection.x;
@@ -380,7 +380,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.pacmanRadius * 0.9375))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.tileSize))/ this.tileSize);
@@ -388,7 +388,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.pacmanRadius * 0.9375))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.tileSize))/ this.tileSize);
@@ -396,7 +396,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
             
             if(center === true && center2 === true && center3 === true){
                 this.newInputDirection.x = this.preInputDirection.x;
@@ -411,7 +411,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.tileSize))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.pacmanRadius * 0.984375))/ this.tileSize);
@@ -419,7 +419,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (-1 * this.tileSize))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.pacmanRadius * 0.984375))/ this.tileSize);
@@ -427,7 +427,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             if(center === true && center2 === true && center3 === true){
                 this.newInputDirection.x = this.preInputDirection.x;
@@ -442,7 +442,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.tileSize))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (1 * this.pacmanRadius * 0.984375))/ this.tileSize);
@@ -450,7 +450,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center2 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             this.tileYPlusInputDir = Math.floor((this.pacman.y - this.mapOffsetY + (1 * this.tileSize))/ this.tileSize);
             this.tileXPlusInputDir = Math.floor((this.pacman.x - this.mapOffsetX + (-1 * this.pacmanRadius * 0.984375))/ this.tileSize);
@@ -458,7 +458,7 @@ export class PacTest2 extends Phaser.Scene {
             this.nextWorldX = this.mapOffsetX + this.tileXPlusInputDir * this.tileSize + this.tileSize / 2;
             this.nextWorldY = this.mapOffsetY + this.tileYPlusInputDir * this.tileSize + this.tileSize / 2;
 
-            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] === 0 ? true:false;
+            const center3 = this.map[this.tileYPlusInputDir][this.tileXPlusInputDir] !== 1 ? true:false;
 
             if(center === true && center2 === true && center3 === true){
                 this.newInputDirection.x = this.preInputDirection.x;
@@ -480,6 +480,29 @@ export class PacTest2 extends Phaser.Scene {
         if(this.blockedByWall === false){
             this.pacman.setX(this.pacman.x + this.newInputDirection.x * this.pacmanSpeed);
             this.pacman.setY(this.pacman.y + this.newInputDirection.y * this.pacmanSpeed);
+            
+            // Handle teleportation on row 8 (the tunnel row)
+            this.handleTeleportation();
+        }
+    }
+
+    private handleTeleportation() {
+        // Get current tile position
+        const currentTileY = Math.floor((this.pacman.y - this.mapOffsetY) / this.tileSize);
+        const currentTileX = Math.floor((this.pacman.x - this.mapOffsetX) / this.tileSize);
+        
+        // Check if Pacman is on the teleportation row (row 8)
+        if (currentTileY === 8) {
+            // Check if Pacman has gone off the right edge
+            if (this.pacman.x > this.mapOffsetX + (this.mapWidth * this.tileSize)) {
+                // Teleport to the left side
+                this.pacman.setX(this.mapOffsetX - this.pacmanRadius);
+            }
+            // Check if Pacman has gone off the left edge
+            else if (this.pacman.x < this.mapOffsetX - this.pacmanRadius) {
+                // Teleport to the right side
+                this.pacman.setX(this.mapOffsetX + (this.mapWidth * this.tileSize));
+            }
         }
     }
 
