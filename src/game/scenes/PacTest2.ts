@@ -5,8 +5,19 @@ export class PacTest2 extends Phaser.Scene {
 
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     
-    // Add background music property
-    private backgroundMusic!: Phaser.Sound.BaseSound;
+    // Add audio properties
+    private startMusic!: Phaser.Sound.BaseSound;
+    private gameMusic!: Phaser.Sound.BaseSound;
+    private gameStarted: boolean = false;
+
+    // Score tracking properties
+    private score: number = 0;
+    private totalDots: number = 0;
+    
+    // Progression tracking properties
+    private progression: number = 0;
+    private maxProgression: number = 0;
+    private reward: number = 0;
 
     // Gesture handling properties
     private swipeStartX: number = 0;
@@ -31,9 +42,9 @@ export class PacTest2 extends Phaser.Scene {
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
         [1,0,0,0,0,1,1,1,0,1,0,1,1,1,0,0,0,0,1],
-        [1,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1],
-        [1,1,1,1,0,1,0,1,1,0,1,1,0,1,0,1,1,1,1],
-        [0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0],
+        [1,0,0,1,0,1,0,0,0,5,0,0,0,1,0,1,0,0,1],
+        [1,1,1,1,0,1,0,1,1,6,1,1,0,1,0,1,1,1,1],
+        [0,0,0,0,0,0,0,1,5,5,5,1,0,0,0,0,0,0,0],
         [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
         [1,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1],
         [1,0,0,0,0,1,1,1,0,1,0,1,1,1,0,0,0,0,1],
@@ -50,7 +61,7 @@ export class PacTest2 extends Phaser.Scene {
     private pacman!: Phaser.GameObjects.Graphics;
     private pacmanGlow!: Phaser.GameObjects.Arc;
     private pacmanRadius: number = 16; // Will be calculated based on tileSize
-    private pacmanSpeed: number = 3.2; // Will be calculated based on tileSize
+    private pacmanSpeed: number = 2.66666667; // Will be calculated based on tileSize
     private pacmanMouthAngle: number = 0; // Current mouth opening angle
     private pacmanDirection: number = 0; // Current facing direction in degrees
     // private currentInputDirection: { x: number, y: number } = { x: 0, y: 0 };
@@ -83,12 +94,57 @@ export class PacTest2 extends Phaser.Scene {
         // Create a dark gradient background
         this.createBackground();
 
-        // Start background music
-        // this.backgroundMusic = this.sound.add('coffee-break-music', {
-        //     loop: true,  // Loop the music
-        //     volume: 0.5  // Set volume (0.0 to 1.0)
-        // });
-        // this.backgroundMusic.play();
+        // Initialize score and progression
+        this.score = 0;
+        this.progression = 0;
+        this.reward = 0;
+        this.totalDots = 0; // Reset dot counter
+        
+        // Clear existing dots and walls arrays
+        this.dots = [];
+        this.walls = [];
+        
+        // Reset movement state
+        this.preInputDirection = { x: 0, y: 0 };
+        this.preInputSelected = false;
+        this.newInputDirection = { x: 0, y: 0 };
+        this.blockedByWall = false;
+        this.gameStarted = false; // Reset game started flag
+        
+        // Reset map state - convert all collected tiles (3) back to empty tiles (0)
+        for (let y = 0; y < this.map.length; y++) {
+            for (let x = 0; x < this.map[y].length; x++) {
+                if (this.map[y][x] === 3) { // 3 = collected tile
+                    this.map[y][x] = 0; // 0 = empty tile (available for dots)
+                }
+            }
+        }
+        
+        EventBus.emit('score-update', this.score);
+
+        console.log('PacTest2 scene created');
+        
+        // Play start music and wait for it to finish before starting game
+        this.startMusic = this.sound.add('start-music', {
+            loop: false,
+            volume: 0.4
+        });
+        
+        console.log('Playing start music');
+        this.startMusic.play();
+        
+        // Wait for start music to finish, then enable game and start background music
+        this.startMusic.once('complete', () => {
+            this.gameStarted = true;
+            console.log('Game started! You can now move.');
+            
+            // Start continuous background music
+            this.gameMusic = this.sound.add('coffee-break-music', {
+                loop: true,
+                volume: 0.25
+            });
+            this.gameMusic.play();
+        });
 
         // Create the maze
         for (let y = 0; y < this.map.length; y++) {
@@ -100,7 +156,9 @@ export class PacTest2 extends Phaser.Scene {
             }
         }
 
-        // Create dots and pacman
+        // First pass: Create pacman and find all available empty tiles
+        const availableEmptyTiles: { x: number, y: number }[] = [];
+        
         for (let y = 0; y < this.map.length; y++) {
             for (let x = 0; x < this.map[y].length; x++) {
                 const tile = this.map[y][x];
@@ -108,7 +166,8 @@ export class PacTest2 extends Phaser.Scene {
                 const spawnY = this.mapOffsetY + y * this.tileSize + this.tileSize / 2;
 
                 if (tile === 0) {
-                    this.createDot(spawnX, spawnY);
+                    // Add to available empty tiles list
+                    availableEmptyTiles.push({ x, y });
                 }
                 else if (tile === 4) {
                     this.createPacman(spawnX, spawnY);
@@ -116,17 +175,31 @@ export class PacTest2 extends Phaser.Scene {
             }
         }
 
+        // Second pass: Randomly select 100 tiles from available empty tiles and place dots
+        this.placeRandomDots(availableEmptyTiles, 100);
+
         // Add glow effects
         this.createGlowEffects();
+
+        // Initialize progression system
+        this.initializeProgression();
 
         EventBus.emit('current-scene-ready', this);
     }
 
     private calculateTileSize() {
-        // Get available screen dimensions (accounting for padding)
+        // Get available screen dimensions (accounting for padding and UI elements)
         const paddingPx = 32; // 2rem = 32px padding on each side
+        
+        // Responsive UI space calculation
+        const isMobile = this.scale.width <= 768;
+        const isSmallMobile = this.scale.width <= 480;
+        
+        const topUISpace = isSmallMobile ? 120 : isMobile ? 140 : 120;
+        const bottomUISpace = isSmallMobile ? 80 : isMobile ? 90 : 80;
+        
         const availableWidth = this.scale.width - (paddingPx * 2);
-        const availableHeight = this.scale.height - (paddingPx * 2);
+        const availableHeight = this.scale.height - (paddingPx * 2) - topUISpace - bottomUISpace;
         
         // Calculate tile size based on width and height constraints
         const maxTileSizeByWidth = Math.floor(availableWidth / this.mapWidth);
@@ -142,9 +215,9 @@ export class PacTest2 extends Phaser.Scene {
         const actualMapWidth = this.mapWidth * this.tileSize;
         const actualMapHeight = this.mapHeight * this.tileSize;
         
-        // Calculate offsets to center the map
+        // Calculate offsets to center the map (accounting for top UI space)
         this.mapOffsetX = (this.scale.width - actualMapWidth) / 2;
-        this.mapOffsetY = (this.scale.height - actualMapHeight) / 2;
+        this.mapOffsetY = (this.scale.height - actualMapHeight) / 2 + (topUISpace / 2);
         
         // Calculate pacman radius and speed based on tile size
         this.pacmanRadius = this.tileSize / 2;
@@ -382,25 +455,67 @@ export class PacTest2 extends Phaser.Scene {
         }
     }
 
-    private createDot(spawnX: number, spawnY: number) {
-        // Scale dot size based on tile size
-        const dotRadius = Math.max(2, this.tileSize / 8);
-        const dot = this.add.arc(spawnX, spawnY, dotRadius, 0, 360, false, 0x00ff88);
-        dot.setDepth(15);
+    private createDataDot(spawnX: number, spawnY: number) {
+        // Create a data packet visual instead of a simple dot
+        const dotSize = Math.max(8, this.tileSize / 4);
         
-        // Add a subtle pulsing effect to dots
+        // Create a container for the data dot
+        const dotContainer = this.add.container(spawnX, spawnY);
+        dotContainer.setDepth(15);
+        
+        // Create database/data stack icon (universally recognized as data)
+        this.createDatabaseStack(dotContainer, dotSize);
+        
+        // Add a subtle pulsing effect with data-like glow
         this.tweens.add({
-            targets: dot,
-            scaleX: { from: 1, to: 1.3 },
-            scaleY: { from: 1, to: 1.3 },
-            alpha: { from: 1, to: 0.7 },
-            duration: 2000 + Math.random() * 1000,
+            targets: dotContainer,
+            scaleX: { from: 1, to: 1.2 },
+            scaleY: { from: 1, to: 1.2 },
+            alpha: { from: 0.9, to: 1 },
+            duration: 1500 + Math.random() * 1000,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
         
-        this.dots.push(dot);
+        // Add to dots array (cast to Arc for compatibility)
+        this.dots.push(dotContainer as any);
+    }
+
+    private createDatabaseStack(container: Phaser.GameObjects.Container, size: number) {
+        // Create the classic stacked database/data cylinder icon
+        const cylinderWidth = size * 0.8;
+        const cylinderHeight = size * 0.15;
+        const stackSpacing = size * 0.18;
+        
+        // Create 3 stacked cylinders (classic database icon)
+        for (let i = 0; i < 3; i++) {
+            const yOffset = (i - 1) * stackSpacing;
+            
+            // Main cylinder body
+            const cylinder = this.add.ellipse(0, yOffset, cylinderWidth, cylinderHeight, 0x001122);
+            cylinder.setStrokeStyle(2, 0x00ff88);
+            container.add(cylinder);
+            
+            // Add subtle gradient effect with a slightly brighter fill for the top
+            if (i === 0) { // Bottom cylinder - darker
+                cylinder.setFillStyle(0x000811);
+            } else if (i === 1) { // Middle cylinder
+                cylinder.setFillStyle(0x001122);
+            } else { // Top cylinder - slightly brighter
+                cylinder.setFillStyle(0x001633);
+            }
+        }
+        
+        // Add small data indicator dots on the top cylinder
+        const dot1 = this.add.arc(-size * 0.15, -stackSpacing, 2, 0, 360, false, 0x00ff88);
+        container.add(dot1);
+        
+        const dot2 = this.add.arc(0, -stackSpacing, 2, 0, 360, false, 0x00ff88);
+        container.add(dot2);
+        
+        const dot3 = this.add.arc(size * 0.15, -stackSpacing, 2, 0, 360, false, 0x00ff88);
+        container.add(dot3);
     }
 
     private createGlowEffects() {
@@ -412,15 +527,247 @@ export class PacTest2 extends Phaser.Scene {
         ambientGlow.setBlendMode(Phaser.BlendModes.ADD);
     }
 
+    private placeRandomDots(availableEmptyTiles: { x: number, y: number }[], targetDotCount: number) {
+        // Shuffle the available tiles array to randomize selection
+        const shuffledTiles = [...availableEmptyTiles];
+        for (let i = shuffledTiles.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledTiles[i], shuffledTiles[j]] = [shuffledTiles[j], shuffledTiles[i]];
+        }
+        
+        // Take the first 'targetDotCount' tiles (or all available if less than target)
+        const selectedTiles = shuffledTiles.slice(0, Math.min(targetDotCount, shuffledTiles.length));
+        
+        // Place dots on selected tiles
+        selectedTiles.forEach(tile => {
+            const spawnX = this.mapOffsetX + tile.x * this.tileSize + this.tileSize / 2;
+            const spawnY = this.mapOffsetY + tile.y * this.tileSize + this.tileSize / 2;
+            this.createDataDot(spawnX, spawnY);
+            this.totalDots++;
+        });
+        
+        console.log(`Placed ${this.totalDots} dots randomly out of ${availableEmptyTiles.length} available tiles`);
+    }
+
+    private initializeProgression() {
+        // Max progression represents 1000MB total
+        this.maxProgression = 1000;
+        
+        // Emit initial values
+        EventBus.emit('progression-update', this.progression);
+        EventBus.emit('max-progression-update', this.maxProgression);
+        EventBus.emit('reward-update', this.reward);
+        
+        console.log(`Total dots: ${this.totalDots}, Max progression: ${this.maxProgression}MB`);
+        console.log(`Each dot adds: ${(this.maxProgression / this.totalDots).toFixed(2)}MB`);
+    }
+
+
+
     update(){
-        if (!this.cursors) return;
+        if (!this.cursors || !this.gameStarted) return;
 
         this.playerMovement();
+        this.checkDotCollision();
     }
 
     private updatePacmanGlow() {
         // Update any glow effects that follow pacman
         // This could be expanded for more visual effects
+    }
+
+
+
+    private checkDotCollision() {
+        // Get Pacman's current tile position
+        const pacmanTileX = Math.floor((this.pacman.x - this.mapOffsetX) / this.tileSize);
+        const pacmanTileY = Math.floor((this.pacman.y - this.mapOffsetY) / this.tileSize);
+        
+        // Check if Pacman is close enough to the center of a tile to collect a dot
+        const centerX = this.mapOffsetX + pacmanTileX * this.tileSize + this.tileSize / 2;
+        const centerY = this.mapOffsetY + pacmanTileY * this.tileSize + this.tileSize / 2;
+        
+        const distanceToCenter = Phaser.Math.Distance.Between(this.pacman.x, this.pacman.y, centerX, centerY);
+        
+
+        
+        // If Pacman is close enough to the center (within half the pacman radius)
+        if (distanceToCenter < this.pacmanRadius / 2) {
+            // Check if there's a dot at this position
+            for (let i = this.dots.length - 1; i >= 0; i--) {
+                const dot = this.dots[i];
+                const dotDistance = Phaser.Math.Distance.Between(this.pacman.x, this.pacman.y, dot.x, dot.y);
+                
+                if (dotDistance < this.pacmanRadius) {
+                    this.collectDot(dot, i, pacmanTileX, pacmanTileY);
+                    break; // Only collect one dot per frame
+                }
+            }
+        }
+    }
+
+    private collectDot(dot: Phaser.GameObjects.Arc, index: number, tileX: number, tileY: number) {
+        // Create collection effect before removing the dot
+        this.createCollectionEffect(dot.x, dot.y);
+        
+        // Remove the dot visually
+        dot.destroy();
+        
+        // Remove from dots array
+        this.dots.splice(index, 1);
+        
+        // Update the map to mark this tile as empty (no longer has a dot)
+        if (this.map[tileY] && this.map[tileY][tileX] === 0) {
+            this.map[tileY][tileX] = 3; // Mark as collected (3 = empty space, no dot)
+        }
+        
+        // Add to score
+        this.score += 10;
+        this.updateScore();
+        
+        // Update progression (each dot increases progression by 10% of max progression)
+        this.updateProgression();
+        
+        // Collection sound is handled by movement eating sound
+        
+        // Check win condition
+        this.checkWinCondition();
+    }
+
+    private createCollectionEffect(x: number, y: number) {
+        // Calculate base position behind Pacman based on his direction
+        let baseX = x;
+        let baseY = y;
+        const baseOffset = this.pacmanRadius * 0.5;
+        
+        switch (this.pacmanDirection) {
+            case 0: // Right - effects appear to the left (behind)
+                baseX = x - baseOffset;
+                break;
+            case 90: // Down - effects appear above (behind)
+                baseY = y - baseOffset;
+                break;
+            case 180: // Left - effects appear to the right (behind)
+                baseX = x + baseOffset;
+                break;
+            case 270: // Up - effects appear below (behind)
+                baseY = y + baseOffset;
+                break;
+        }
+        
+        // Calculate position behind Pacman based on his direction (closer to Pacman)
+        let popupX = x;
+        let popupY = y;
+        const offset = this.pacmanRadius + 8; // Closer to Pacman (was 15)
+        
+        switch (this.pacmanDirection) {
+            case 0: // Right - popup appears to the left (behind)
+                popupX = x - offset;
+                break;
+            case 90: // Down - popup appears above (behind)
+                popupY = y - offset;
+                break;
+            case 180: // Left - popup appears to the right (behind)
+                popupX = x + offset;
+                break;
+            case 270: // Up - popup appears below (behind)
+                popupY = y + offset;
+                break;
+        }
+        
+        // Create a slightly bigger score popup
+        const mbPerDot = (this.maxProgression / this.totalDots).toFixed(1).replace('.0', '');
+        const scoreText = this.add.text(popupX, popupY, `+${mbPerDot}MB`, {
+            fontSize: '16px', // Slightly bigger (was 14px)
+            color: '#00ff88',
+            fontFamily: 'Arial',
+            fontStyle: 'bold'
+        }).setOrigin(0.5, 0.5);
+        scoreText.setDepth(18); // Behind Pacman (Pacman is at depth 20)
+        
+        // Set initial state (small and transparent)
+        scoreText.setScale(0.2);
+        scoreText.setAlpha(0);
+        
+        // Animate score popup (grows and floats upward gradually)
+        this.tweens.add({
+            targets: scoreText,
+            y: popupY, // Small initial float upward
+            scaleX: { from: 0.2, to: 0.9 }, // Grow in size
+            scaleY: { from: 0.2, to: 0.9 },
+            alpha: { from: 0, to: 1 },
+            duration: 600, // Slower initial animation
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Continue floating upward slowly while growing slightly and fading out
+                this.tweens.add({
+                    targets: scoreText,
+                    y: scoreText.y - 12, // Continue floating up slowly (20 pixels total)
+                    scaleX: 1.0, // Grow just a tiny bit more
+                    scaleY: 1.0,
+                    alpha: 0,
+                    duration: 800, // Much slower fade with movement
+                    ease: 'Sine.easeOut', // Gentler easing
+                    onComplete: () => {
+                        scoreText.destroy();
+                    }
+                });
+            }
+        });
+        
+        // Create a visible flash effect at the dot's original location
+        const flash = this.add.arc(x, y, this.tileSize / 2, 0, 360, false, 0xffffff);
+        flash.setDepth(16);
+        flash.setAlpha(0.8); // More visible
+        flash.setBlendMode(Phaser.BlendModes.ADD);
+        
+        this.tweens.add({
+            targets: flash,
+            scaleX: { from: 0.5, to: 2.0 }, // Bigger expansion
+            scaleY: { from: 0.5, to: 2.0 },
+            alpha: { from: 0.8, to: 0 },
+            duration: 300, // Longer duration
+            ease: 'Power2',
+            onComplete: () => {
+                flash.destroy();
+            }
+        });
+    }
+
+    private updateScore() {
+        EventBus.emit('score-update', this.score);
+    }
+
+    private updateProgression() {
+        // Each dot adds: 1000MB ÷ total_dots
+        const progressionIncrease = this.maxProgression / this.totalDots;
+        this.progression += progressionIncrease;
+        
+        console.log(`Progression: ${this.progression.toFixed(2)}MB/${this.maxProgression}MB (${(this.progression/this.maxProgression*100).toFixed(1)}%)`);
+        
+        // Check for 100MB milestones (every 10% of the 1000MB total)
+        const currentPercentage = (this.progression / this.maxProgression) * 100;
+        const previousPercentage = ((this.progression - progressionIncrease) / this.maxProgression) * 100;
+        const currentMilestone = Math.floor(currentPercentage / 10);
+        const previousMilestone = Math.floor(previousPercentage / 10);
+        
+        if (currentMilestone > previousMilestone) {
+            // Add 100MB to reward for each milestone reached
+            this.reward += 100;
+            console.log(`Milestone reached: ${currentMilestone * 10}% - Reward: ${this.reward}MB`);
+            EventBus.emit('show-reward-popup');
+            EventBus.emit('reward-update', this.reward);
+        }
+        
+        // Emit progression update
+        EventBus.emit('progression-update', this.progression);
+    }
+
+    private checkWinCondition() {
+        if (this.dots.length === 0) {
+            // All dots collected - player wins!
+            EventBus.emit('game-won');
+        }
     }
 
     private playerMovement(){
@@ -600,29 +947,42 @@ export class PacTest2 extends Phaser.Scene {
     private handleTeleportation() {
         // Get current tile position
         const currentTileY = Math.floor((this.pacman.y - this.mapOffsetY) / this.tileSize);
-        const currentTileX = Math.floor((this.pacman.x - this.mapOffsetX) / this.tileSize);
         
         // Check if Pacman is on the teleportation row (row 8)
         if (currentTileY === 8) {
-            // Check if Pacman has gone off the right edge
-            if (this.pacman.x > this.mapOffsetX + (this.mapWidth * this.tileSize)) {
-                // Teleport to the left side
-                this.pacman.setX(this.mapOffsetX - this.pacmanRadius);
+            // Calculate trigger boundaries - trigger earlier when Pacman's center approaches the edge
+            const leftTriggerBoundary = this.mapOffsetX + (this.pacmanRadius * 0.5);
+            const rightTriggerBoundary = this.mapOffsetX + (this.mapWidth * this.tileSize) - (this.pacmanRadius * 0.5);
+            
+            // Calculate safe spawn positions - spawn well inside the playable area
+            const leftSpawnX = this.mapOffsetX + (this.mapWidth * this.tileSize) - (this.tileSize * 0.5);
+            const rightSpawnX = this.mapOffsetX + (this.tileSize * 0.5);
+            
+            // Check if Pacman is approaching the right edge
+            if (this.pacman.x >= rightTriggerBoundary && this.newInputDirection.x > 0) {
+                // Teleport to the left side, well inside the map
+                this.pacman.setX(rightSpawnX);
                 this.pacmanGlow.setX(this.pacman.x);
+                console.log('Teleported to left side');
             }
-            // Check if Pacman has gone off the left edge
-            else if (this.pacman.x < this.mapOffsetX - this.pacmanRadius) {
-                // Teleport to the right side
-                this.pacman.setX(this.mapOffsetX + (this.mapWidth * this.tileSize));
+            // Check if Pacman is approaching the left edge
+            else if (this.pacman.x <= leftTriggerBoundary && this.newInputDirection.x < 0) {
+                // Teleport to the right side, well inside the map
+                this.pacman.setX(leftSpawnX);
                 this.pacmanGlow.setX(this.pacman.x);
+                console.log('Teleported to right side');
             }
         }
     }
 
-    // Clean up background music when scene ends
+    // Clean up audio when scene ends
     shutdown() {
-        if (this.backgroundMusic) {
-            this.backgroundMusic.stop();
+        console.log('PacTest2 scene shutting down');
+        if (this.startMusic) {
+            this.startMusic.stop();
+        }
+        if (this.gameMusic) {
+            this.gameMusic.stop();
         }
     }
 }

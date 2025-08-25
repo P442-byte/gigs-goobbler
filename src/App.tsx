@@ -8,6 +8,10 @@ interface GameState {
     lives: number;
     level: number;
     isPaused: boolean;
+    progression: number; // Current progression value (0-100)
+    maxProgression: number; // Max progression value (10% of total dots)
+    reward: number; // Current reward level in MB
+    isGameWon: boolean; // Game win state
 }
 
 function App()
@@ -19,8 +23,14 @@ function App()
         score: 0,
         lives: 3,
         level: 1,
-        isPaused: false
+        isPaused: false,
+        progression: 0,
+        maxProgression: 0,
+        reward: 0,
+        isGameWon: false
     });
+    
+    const [showRewardPopup, setShowRewardPopup] = useState(false);
 
     //  References to the PhaserGame component (game and scene are exposed)
     const phaserRef = useRef<IRefPhaserGame | null>(null);
@@ -40,10 +50,36 @@ function App()
             setGameState(prev => ({ ...prev, isPaused: paused }));
         });
 
+        EventBus.on('progression-update', (progression: number) => {
+            setGameState(prev => ({ ...prev, progression: progression }));
+        });
+
+        EventBus.on('max-progression-update', (maxProgression: number) => {
+            setGameState(prev => ({ ...prev, maxProgression: maxProgression }));
+        });
+
+        EventBus.on('reward-update', (reward: number) => {
+            setGameState(prev => ({ ...prev, reward: reward }));
+        });
+
+        EventBus.on('show-reward-popup', () => {
+            setShowRewardPopup(true);
+            setTimeout(() => setShowRewardPopup(false), 2000); // Hide after 2 seconds
+        });
+
+        EventBus.on('game-won', () => {
+            setGameState(prev => ({ ...prev, isGameWon: true }));
+        });
+
         return () => {
             EventBus.removeListener('score-update');
             EventBus.removeListener('lives-update');
             EventBus.removeListener('game-pause');
+            EventBus.removeListener('progression-update');
+            EventBus.removeListener('max-progression-update');
+            EventBus.removeListener('reward-update');
+            EventBus.removeListener('show-reward-popup');
+            EventBus.removeListener('game-won');
         };
     }, []);
 
@@ -63,12 +99,19 @@ function App()
     const startGame = () => {
         if(phaserRef.current && phaserRef.current.scene)
         {
+            // Stop all sounds before starting game
+            phaserRef.current.scene.sound.stopAll();
+            
             // Reset game state when starting new game
             setGameState({
                 score: 0,
                 lives: 3,
                 level: 1,
-                isPaused: false
+                isPaused: false,
+                progression: 0,
+                maxProgression: 0,
+                reward: 0,
+                isGameWon: false
             });
             phaserRef.current.scene.scene.start('PacTest2');
         }
@@ -77,6 +120,8 @@ function App()
     const backToMenu = () => {
         if(phaserRef.current && phaserRef.current.scene)
         {
+            // Stop any playing sounds before switching scenes
+            phaserRef.current.scene.sound.stopAll();
             phaserRef.current.scene.scene.start('MainMenu');
         }
     }
@@ -91,6 +136,27 @@ function App()
                 scene.scene.pause();
             }
             setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
+        }
+    }
+
+    const restartGame = () => {
+        if(phaserRef.current && phaserRef.current.scene)
+        {
+            // Reset game state
+            setGameState({
+                score: 0,
+                lives: 3,
+                level: 1,
+                isPaused: false,
+                progression: 0,
+                maxProgression: 0,
+                reward: 0,
+                isGameWon: false
+            });
+            // Stop all sounds and restart scene fresh
+            phaserRef.current.scene.sound.stopAll();
+            phaserRef.current.scene.scene.stop();
+            phaserRef.current.scene.scene.start('PacTest2');
         }
     }
 
@@ -163,12 +229,9 @@ function App()
                             <button className="menu-button primary" onClick={startGame}>
                                 Start Game
                             </button>
-                            <button className="menu-button secondary">
-                                Instructions
-                            </button>
                         </div>
                         <div className="controls-info">
-                            <p>Use arrow keys to move • Press Enter or P to start</p>
+                            <p>Use arrow keys or swipe screen to change direction</p>
                         </div>
                     </div>
                 </div>
@@ -177,29 +240,60 @@ function App()
             {/* Game UI Overlay */}
             {currentScene === 'PacTest2' && (
                 <div className="game-overlay">
-                    <div className="game-hud">
-                        <div className="hud-left">
-                            <div className="score">Score: {gameState.score.toLocaleString()}</div>
+                    {/* Top HUD Row */}
+                    <div className="top-hud">
+                        <div className="top-hud-left">
                             <div className="lives">Lives: {gameState.lives}</div>
-                            <div className="level">Level: {gameState.level}</div>
                         </div>
-                        <div className="hud-right">
+                        <div className="top-hud-right">
                             <button 
                                 className="game-button pause-btn" 
                                 onClick={togglePause}
                                 title={gameState.isPaused ? "Resume" : "Pause"}
                             >
-                                {gameState.isPaused ? '▶️' : '⏸️'}
+                                {gameState.isPaused ? '▶' : '⏸'}
                             </button>
                             <button 
                                 className="game-button menu-btn" 
                                 onClick={backToMenu}
                                 title="Back to Menu"
                             >
-                                🏠
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                                </svg>
                             </button>
                         </div>
                     </div>
+
+                    {/* Progress Bar Section */}
+                    <div className="progress-section">
+                        <div className="progress-bar-top">
+                            <div 
+                                className="progress-fill-top" 
+                                style={{ width: `${gameState.maxProgression > 0 ? (gameState.progression / gameState.maxProgression) * 100 : 0}%` }}
+                            ></div>
+                            {/* Milestone dots */}
+                            {[...Array(10)].map((_, index) => (
+                                <div 
+                                    key={index}
+                                    className={`milestone-dot ${gameState.progression >= (gameState.maxProgression * (index + 1) / 10) ? 'completed' : ''}`}
+                                    style={{ left: `${(index + 1) * 10}%` }}
+                                >
+                                    
+                                </div>
+                            ))}
+                        </div>
+                        <div className="reward-display">
+                            <div className="reward">Reward: {gameState.reward}MB</div>
+                        </div>
+                    </div>
+
+                    {/* Reward Popup */}
+                    {showRewardPopup && (
+                        <div className="reward-popup">
+                            +100MB Earned!
+                        </div>
+                    )}
                     
                     {/* Pause Overlay */}
                     {gameState.isPaused && (
@@ -209,6 +303,37 @@ function App()
                                 <div className="pause-buttons">
                                     <button className="menu-button primary" onClick={togglePause}>
                                         Resume Game
+                                    </button>
+                                    <button className="menu-button secondary" onClick={backToMenu}>
+                                        Back to Menu
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Win Screen Overlay */}
+                    {gameState.isGameWon && (
+                        <div className="win-overlay">
+                            <div className="win-container">
+                                <h1>🎉 Data Collection Complete! 🎉</h1>
+                                <div className="win-summary">
+                                    <div className="summary-item">
+                                        <span className="summary-label">Final Score:</span>
+                                        <span className="summary-value">{gameState.score.toLocaleString()}</span>
+                                    </div>
+                                    <div className="summary-item">
+                                        <span className="summary-label">Data Collected:</span>
+                                        <span className="summary-value">{gameState.reward}MB</span>
+                                    </div>
+                                    <div className="summary-item">
+                                        <span className="summary-label">Lives Remaining:</span>
+                                        <span className="summary-value">{gameState.lives}</span>
+                                    </div>
+                                </div>
+                                <div className="win-buttons">
+                                    <button className="menu-button primary" onClick={restartGame}>
+                                        Play Again
                                     </button>
                                     <button className="menu-button secondary" onClick={backToMenu}>
                                         Back to Menu

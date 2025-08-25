@@ -7,6 +7,7 @@ export class MainMenu extends Scene
     background: GameObjects.Image;
     logo: GameObjects.Image;
     logoTween: Phaser.Tweens.Tween | null;
+    menuMusic: Phaser.Sound.BaseSound;
 
     constructor ()
     {
@@ -15,20 +16,40 @@ export class MainMenu extends Scene
 
     create ()
     {
-        // Create a simple gradient background or use the existing background
-        this.background = this.add.image(512, 384, 'background');
+        console.log('MainMenu scene created');
+        
+        // Start menu background music with longer delay to ensure audio system is ready
+        this.time.delayedCall(500, () => {
+            this.menuMusic = this.sound.add('coffee-break-music', {
+                loop: true,
+                volume: 0.25
+            });
+            this.menuMusic.play();
+            console.log('Menu music started');
+        });
 
         // Add input for starting the game (keeping P key as backup)
         this.input.keyboard!.on('keydown-P', () => {
+            console.log('Starting game via P key');
+            this.menuMusic.stop(); // Stop menu music when starting game
             this.scene.start('PacTest2');
         });
 
         // Add Enter key as alternative
         this.input.keyboard!.on('keydown-ENTER', () => {
+            console.log('Starting game via Enter key');
+            this.menuMusic.stop(); // Stop menu music when starting game
             this.scene.start('PacTest2');
         });
 
         EventBus.emit('current-scene-ready', this);
+    }
+
+    shutdown() {
+        console.log('MainMenu scene shutting down');
+        if (this.menuMusic) {
+            this.menuMusic.stop();
+        }
     }
 
     moveLogo (vueCallback: ({ x, y }: { x: number, y: number }) => void)
