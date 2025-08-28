@@ -41,6 +41,14 @@ export class Preloader extends Scene
         this.load.audio('eating-fruit', 'eating-fruit.mp3');
         this.load.audio('eating', 'eating.mp3');
         this.load.audio('start-music', 'start-music.mp3');
+        
+        // Load Pac-Man sound effects
+        this.load.audio('miss', 'miss.mp3');
+        this.load.audio('credit', 'credit.mp3');
+        this.load.audio('eating-ghost', 'eating-ghost.mp3');
+        this.load.audio('ghost-turn-to-blue', 'ghost-turn-to-blue.mp3');
+        this.load.audio('ghost-normal-move', 'ghost-normal-move.mp3');
+        this.load.audio('extend', 'extend.mp3');
     }
 
     create ()

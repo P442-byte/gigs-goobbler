@@ -12,6 +12,7 @@ interface GameState {
     maxProgression: number; // Max progression value (10% of total dots)
     reward: number; // Current reward level in MB
     isGameWon: boolean; // Game win state
+    isGameOver: boolean; // Game over state
 }
 
 function App()
@@ -27,7 +28,8 @@ function App()
         progression: 0,
         maxProgression: 0,
         reward: 0,
-        isGameWon: false
+        isGameWon: false,
+        isGameOver: false
     });
     
     const [showRewardPopup, setShowRewardPopup] = useState(false);
@@ -71,6 +73,10 @@ function App()
             setGameState(prev => ({ ...prev, isGameWon: true }));
         });
 
+        EventBus.on('game-over', () => {
+            setGameState(prev => ({ ...prev, isGameOver: true, isPaused: false }));
+        });
+
         return () => {
             EventBus.removeListener('score-update');
             EventBus.removeListener('lives-update');
@@ -80,6 +86,7 @@ function App()
             EventBus.removeListener('reward-update');
             EventBus.removeListener('show-reward-popup');
             EventBus.removeListener('game-won');
+            EventBus.removeListener('game-over');
         };
     }, []);
 
@@ -111,7 +118,8 @@ function App()
                 progression: 0,
                 maxProgression: 0,
                 reward: 0,
-                isGameWon: false
+                isGameWon: false,
+                isGameOver: false
             });
             phaserRef.current.scene.scene.start('PacTest2');
         }
@@ -151,7 +159,8 @@ function App()
                 progression: 0,
                 maxProgression: 0,
                 reward: 0,
-                isGameWon: false
+                isGameWon: false,
+                isGameOver: false
             });
             // Stop all sounds and restart scene fresh
             phaserRef.current.scene.sound.stopAll();
@@ -249,7 +258,9 @@ function App()
                             <button 
                                 className="game-button pause-btn" 
                                 onClick={togglePause}
-                                title={gameState.isPaused ? "Resume" : "Pause"}
+                                disabled={gameState.isGameOver}
+                                title={gameState.isGameOver ? "Game Over" : (gameState.isPaused ? "Resume" : "Pause")}
+                                style={{ opacity: gameState.isGameOver ? 0.5 : 1, cursor: gameState.isGameOver ? 'not-allowed' : 'pointer' }}
                             >
                                 {gameState.isPaused ? '▶' : '⏸'}
                             </button>
@@ -296,7 +307,7 @@ function App()
                     )}
                     
                     {/* Pause Overlay */}
-                    {gameState.isPaused && (
+                    {gameState.isPaused && !gameState.isGameOver && (
                         <div className="pause-overlay">
                             <div className="pause-container">
                                 <h2>Game Paused</h2>
@@ -306,6 +317,33 @@ function App()
                                     </button>
                                     <button className="menu-button secondary" onClick={backToMenu}>
                                         Back to Menu
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Game Over Overlay */}
+                    {gameState.isGameOver && (
+                        <div className="pause-overlay">
+                            <div className="pause-container">
+                                <h2>Game Over</h2>
+                                <div className="win-summary">
+                                    <div className="summary-item">
+                                        <span className="summary-label">Final Score</span>
+                                        <span className="summary-value">{gameState.score.toLocaleString()}</span>
+                                    </div>
+                                    <div className="summary-item">
+                                        <span className="summary-label">Data Collected</span>
+                                        <span className="summary-value">{gameState.progression.toFixed(1)} MB</span>
+                                    </div>
+                                </div>
+                                <div className="pause-buttons">
+                                    <button className="menu-button primary" onClick={restartGame}>
+                                        Play Again
+                                    </button>
+                                    <button className="menu-button secondary" onClick={backToMenu}>
+                                        Main Menu
                                     </button>
                                 </div>
                             </div>
